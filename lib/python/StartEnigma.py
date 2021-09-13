@@ -1,5 +1,6 @@
 import sys
 import os
+from time import time
 from Tools.Profile import profile, profile_final
 profile("PYTHON_START")
 
@@ -12,10 +13,6 @@ import eBaseImpl
 enigma.eTimer = eBaseImpl.eTimer
 enigma.eSocketNotifier = eBaseImpl.eSocketNotifier
 enigma.eConsoleAppContainer = eConsoleImpl.eConsoleAppContainer
-
-from boxbranding import getBoxType
-
-boxtype = getBoxType()
 
 from traceback import print_exc
 
@@ -30,7 +27,7 @@ from Screens.SimpleSummary import SimpleSummary
 from sys import stdout
 
 profile("Bouquets")
-from Components.config import config, configfile, ConfigText, ConfigYesNo, ConfigInteger, NoSave
+from Components.config import config, configfile, ConfigText, ConfigYesNo, ConfigInteger, ConfigSelection, NoSave
 config.misc.load_unlinked_userbouquets = ConfigYesNo(default=True)
 
 
@@ -58,7 +55,6 @@ InitFallbackFiles()
 profile("config.misc")
 config.misc.radiopic = ConfigText(default=resolveFilename(SCOPE_CURRENT_SKIN, "radio.mvi"))
 config.misc.blackradiopic = ConfigText(default=resolveFilename(SCOPE_CURRENT_SKIN, "black.mvi"))
-config.misc.useTransponderTime = ConfigYesNo(default=True)
 config.misc.startCounter = ConfigInteger(default=0) # number of e2 starts...
 config.misc.standbyCounter = NoSave(ConfigInteger(default=0)) # number of standby
 config.misc.DeepStandby = NoSave(ConfigYesNo(default=False)) # detect deepstandby
@@ -86,13 +82,6 @@ def setEPGCachePath(configElement):
 
 #config.misc.standbyCounter.addNotifier(standbyCountChanged, initial_call = False)
 ####################################################
-
-
-def useTransponderTimeChanged(configElement):
-	enigma.eDVBLocalTimeHandler.getInstance().setUseDVBTime(configElement.value)
-
-
-config.misc.useTransponderTime.addNotifier(useTransponderTimeChanged)
 
 profile("Twisted")
 try:
@@ -590,6 +579,10 @@ profile("AVSwitch")
 import Components.AVSwitch
 Components.AVSwitch.InitAVSwitch()
 
+profile("HdmiRecord")
+import Components.HdmiRecord
+Components.HdmiRecord.InitHdmiRecord()
+
 profile("RecordingConfig")
 import Components.RecordingConfig
 Components.RecordingConfig.InitRecordingConfig()
@@ -601,6 +594,10 @@ Components.UsageConfig.InitUsageConfig()
 profile("Timezones")
 import Components.Timezones
 Components.Timezones.InitTimeZones()
+
+profile("Init:NTPSync")
+import Components.NetworkTime
+Components.NetworkTime.AutoNTPSync()
 
 profile("keymapparser")
 import keymapparser
@@ -614,6 +611,16 @@ Components.Network.InitNetwork()
 profile("LCD")
 import Components.Lcd
 Components.Lcd.InitLcd()
+
+from Tools.HardwareInfo import HardwareInfo
+if HardwareInfo().get_device_model() in ('dm7080', 'dm820', 'dm900', 'dm920', 'dreamone', 'dreamtwo'):
+	check = open("/proc/stb/hdmi-rx/0/hdmi_rx_monitor", "r").read()
+	if check.startswith("on"):
+		print("[StartEnigma] Write to /proc/stb/hdmi-rx/0/hdmi_rx_monitor")
+		open("/proc/stb/hdmi-rx/0/hdmi_rx_monitor", "w").write("off")
+	checkaudio = open("/proc/stb/audio/hdmi_rx_monitor", "r").read()
+	if checkaudio.startswith("on"):
+		open("/proc/stb/audio/hdmi_rx_monitor", "w").write("off")
 
 profile("RFMod")
 import Components.RFmod
