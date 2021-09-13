@@ -47,15 +47,16 @@
 					<item level="2" entryID="subtitle_setup"><setup id="subtitlesetup"/></item>
 					<item level="0" entryID="autolanguage_setup"><setup id="autolanguagesetup"/></item>
 				</menu>
-				<item level="0" entryID="usage_setup"><setup id="usage"/></item>
 				<menu level="0" text="GUI Settings" entryID="gui_settings">
 					<id val="gui"/>
 					<item level="0" text="Language" entryID="language_setup"><screen module="LanguageSelection"/></item>
 					<!-- Menu / Setup / Time -->
 					<item entryID="time_setup" level="0" text="Time" weight="50"><screen module="Time" screen="Time" /></item>
 					<item level="0" entryID="user_interface"><setup id="userinterface"/></item>
+					<item level="0" entryID="usage_setup"><setup id="usage"/></item>
 					<item level="0" text="GUI Skin" entryID="primary_skin_selector"><screen module="SkinSelector" screen="SkinSelector"/></item>
 					<item level="0" requires="FrontpanelDisplay" text="Display Skin" entryID="display_skin_selector"><screen module="SkinSelector" screen="LcdSkinSelector"/></item>
+					<item entryID="lcd_setup" requires="Display"><setup level="1" id="lcd"/></item>
 				</menu>
 				<!-- Menu / Setup / EPG -->
 				<menu entryID="epg_menu" level="0" text="EPG" weight="15">
@@ -121,7 +122,6 @@ self.session.openWithCallback(msgClosed, EpgDeleteMsg)
 				</menu>
 				<item level="0" text="Network" entryID="network_setup"><screen module="NetworkSetup" screen="NetworkAdapterSelection"/></item>
 				<item level="1" text="Input devices" entryID="input_device_setup"><screen module="InputDeviceSetup" screen="InputDeviceSelection"/></item>
-				<item entryID="lcd_setup" requires="Display"><setup level="1" id="lcd"/></item>
 				<item entryID="keyboard_setup" text="Keyboard"><setup id="keyboard"/></item>
 				<item level="1" text="Hotkey" entryID="hotkey_setup"><screen module="Hotkey" screen="HotkeySetup"/></item>
 				</menu>
@@ -139,10 +139,11 @@ self.session.openWithCallback(msgClosed, EpgDeleteMsg)
 		<menu text="Standby / restart" entryID="standby_restart_list">
 			<id val="shutdown"/>
 			<item text="Sleep Timer" entryID="sleep"><screen module="SleepTimerEdit" screen="SleepTimerEdit"/></item>
-			<item text="Restart" entryID="restart"><screen module="Standby" screen="TryQuitMainloop">2</screen></item>
+			<item text="Standby" entryID="standby"><screen module="Standby" screen="Standby"/></item>
 			<item text="Restart GUI" entryID="restart_enigma" ><screen module="Standby" screen="TryQuitMainloop">3</screen></item>
-			<item text="Deep standby" equires="deep standby"><screen module="Standby" screen="TryQuitMainloop">1</screen></item>
-			<item text="Shutdown" entryID="deep_standby" requires="!DeepstandbySupport"><screen module="Standby" screen="TryQuitMainloop">1</screen></item>
 			<item text="Multiboot image selector" entryID="multiboot" requires="canMultiBoot"><screen module="FlashImage" screen="MultibootSelection">1</screen></item>
+			<item text="Restart" entryID="restart"><screen module="Standby" screen="TryQuitMainloop">2</screen></item>
+			<item text="Deep standby" requires="DeepstandbySupport" entryID="deep_standby"><screen module="Standby" screen="TryQuitMainloop">1</screen></item>
+			<item text="Shutdown" requires="!DeepstandbySupport" entryID="deep_standby"><screen module="Standby" screen="TryQuitMainloop">1</screen></item>
 		</menu>
 </menu>
