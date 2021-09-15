@@ -304,6 +304,12 @@ def InitUsageConfig():
 		setPreferredTuner(int(configElement.value))
 	config.usage.frontend_priority.addNotifier(PreferredTunerChanged)
 
+	config.usage.menutype = ConfigSelection(default="standard", choices=[
+		("horzanim", _("Horizontal menu")),
+		("horzicon", _("Horizontal icons")),
+		("standard", _("Standard menu"))
+	])
+
 	config.usage.show_picon_in_display = ConfigYesNo(default=True)
 	config.usage.hide_zap_errors = ConfigYesNo(default=False)
 	config.usage.show_cryptoinfo = ConfigYesNo(default=True)
