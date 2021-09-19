@@ -37,7 +37,6 @@ enigma2_LDADD = \
 	@BASE_LIBS@ \
 	@LIBGIF_LIBS@ \
 	@LIBJPEG_LIBS@ \
-	@LIBVUGLES2_LIBS@ \
 	@LIBSDL_LIBS@ \
 	@LIBXINE_LIBS@ \
 	@PTHREAD_LIBS@ \
@@ -46,7 +45,8 @@ enigma2_LDADD = \
 	@ALSA_LIBS@ \
 	@AVAHI_LIBS@ \
 	@LIBDL_LIBS@ \
-	-ltuxtxt32bpp
+	-ltuxtxt32bpp -lcrypt -lrt -ldl \
+	-lv3ddriver @LIBVUGLES2_LIBS@
 
 enigma2_LDFLAGS = -Wl,--export-dynamic
 
