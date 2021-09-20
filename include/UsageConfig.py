@@ -1304,6 +1304,15 @@ def InitUsageConfig():
 	config.misc.softcam_setup = ConfigSubsection()
 	config.misc.softcam_setup.extension_menu = ConfigYesNo(default=True)
 
+	config.logmanager = ConfigSubsection()
+	config.logmanager.showinextensions = ConfigYesNo(default=False)
+	config.logmanager.user = ConfigText(default='', fixed_size=False)
+	config.logmanager.useremail = ConfigText(default='', fixed_size=False)
+	config.logmanager.usersendcopy = ConfigYesNo(default=True)
+	config.logmanager.path = ConfigText(default="/")
+	config.logmanager.additionalinfo = NoSave(ConfigText(default=""))
+	config.logmanager.sentfiles = ConfigLocations(default='')
+
 	config.ntp = ConfigSubsection()
 
 	def timesyncChanged(configElement):

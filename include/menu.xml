@@ -57,6 +57,11 @@
 					<item level="0" requires="FrontpanelDisplay" text="Display Skin" entryID="display_skin_selector"><screen module="SkinSelector" screen="LcdSkinSelector"/></item>
 					<item entryID="lcd_setup" requires="Display"><setup level="1" id="lcd"/></item>
 				</menu>
+				<menu entryID="usage_setup" level="0" text="Log Manager" weight="2">
+					<id val="logs_menu" />
+					<item entryID="log_setup" level="2" text="Settings"><setup id="logs" /></item>
+					<item entryID="logs_man" level="2" text="View Log Manager"><screen module="LogManager" screen="LogManager" /></item>
+				</menu>
 				<!-- Menu / Setup / EPG -->
 				<menu entryID="epg_menu" level="0" text="EPG" weight="15">
 					<id val="epg" />
@@ -102,7 +107,6 @@ self.session.openWithCallback(msgClosed, EpgDeleteMsg)
 						</item>
 					</menu>
 				</menu>
-				<item level="2" entryID="log_settings"><setup id="logs"/></item>
 				<item level="1" entryID="rfmod_setup" requires="RfModulator"><setup id="RFmod"/></item>
 				<menu level="0" text="Expert settings" entryID="expert_selection">
 				<id val="expert"/>
