@@ -43,22 +43,22 @@
 				<menu level="0" text="Audio / Video" entryID="video_selection">
 					<id val="video"/>
 					<item level="0" entryID="av_setup"><setup id="avsetup"/></item>
-					<item level="2" entryID="subtitle_setup"><setup id="subtitlesetup"/></item>
-					<item level="0" entryID="autolanguage_setup"><setup id="autolanguagesetup"/></item>
+					<item entryID="subtitle_setup" level="2" text="Subtitle Setup" weight="20"><setup id="subtitlesetup" /></item>
+					<item level="0" entryID="autolanguage_setup" text="Auto Language Setup"><setup id="autolanguagesetup"/></item>
 				</menu>
 				<menu level="0" text="GUI Settings" entryID="gui_settings">
 					<id val="gui"/>
 					<item level="0" text="Language" entryID="language_setup"><screen module="LanguageSelection"/></item>
-					<!-- Menu / Setup / Time -->
 					<item entryID="time_setup" level="0" text="Time" weight="50"><screen module="Time" screen="Time" /></item>
 					<item level="0" entryID="user_interface"><setup id="userinterface"/></item>
 					<item level="0" entryID="usage_setup"><setup id="usage"/></item>
-					<item level="0" text="GUI Skin" entryID="primary_skin_selector"><screen module="SkinSelector" screen="SkinSelector"/></item>
-				<menu entryID="display_selection" level="0" text="Front Panel Display" requires="Display">
+					<item level="0" text="Skin" entryID="primary_skin_selector"><screen module="SkinSelector" screen="SkinSelector"/></item>
+					<menu entryID="display_selection" level="0" text="Front Panel Display">
 						<id val="lcd" />
-						<item entryID="display_skin_selector" level="0" text="Skin Setup" weight="5"><screen module="SkinSelector" screen="LcdSkinSelector" /></item>
-						<item entryID="lcd_setup" level="1" text="LCD Setup" weight="10"><setup id="FrontDisplay" /></item>
+						<item entryID="display_skin_selector" level="0" text="Skin Setup" weight="5" requires="Display"><screen module="SkinSelector" screen="LcdSkinSelector" /></item>
+						<item entryID="lcd_setup" level="1" text="LCD Setup" weight="10" requires="Display"><setup id="FrontDisplay" /></item>
 						<item entryID="led_setup" level="1" text="LED Setup" weight="15"><setup id="LedDisplay" /></item>
+					</menu>
 				</menu>
 				<menu entryID="usage_setup" level="0" text="Log Manager" weight="2">
 					<id val="logs_menu" />
@@ -114,6 +114,7 @@ self.session.openWithCallback(msgClosed, EpgDeleteMsg)
 				<menu level="0" text="Expert settings" entryID="expert_selection">
 				<id val="expert"/>
 				<item level="0" entryID="accesslevel_setup"><setup id="accesslevel"/></item>
+				<!-- Menu / Setup / Recordings, Playback & Timeshift -->
 				<menu entryID="rec_setup" level="1" text="Playback, Recording &amp; Timeshift" weight="45">
 					<id val="rec" />
 					<item entryID="playback_setup" level="0" text="Playback Setup" weight="5"><setup id="Playback" /></item>
