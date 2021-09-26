@@ -10,6 +10,9 @@ from SystemInfo import SystemInfo
 from os import mkdir, remove
 from os.path import exists, islink, join as pathjoin, normpath
 import os, time, locale, skin
+from boxbranding import getDisplayType
+
+displaytype = getDisplayType()
 
 
 def InitUsageConfig():
@@ -53,7 +56,10 @@ def InitUsageConfig():
 	config.usage.record_indicator_mode = ConfigSelection(default="0", choices=[("0", _("None")), ("1", _("Left from servicename")), ("2", _("Right from servicename")), ("3", _("Red colored"))])
 	config.usage.record_indicator_mode.addNotifier(refreshServiceList)
 
-	config.usage.virtualkeyBoard_style = ConfigSelection(default='OV', choices=[('OV', _('OV Skin')), ('e2', _('enigma2 default'))])
+	config.usage.virtualkeyBoard_style = ConfigSelection(default="new", choices=[
+		("new", _("New style")),
+		("e2", _("Enigma2 default"))
+	])
 
 	choicelist = [("-1", _("Disable"))]
 	for i in range(100, 1325, 25):
@@ -376,6 +382,12 @@ def InitUsageConfig():
 
 	preferredTunerChoicesUpdate()
 
+	config.usage.menutype = ConfigSelection(default="standard", choices=[
+		("horzanim", _("Horizontal menu")),
+		("horzicon", _("Horizontal icons")),
+		("standard", _("Standard menu"))
+	])
+
 	config.misc.disable_background_scan = ConfigYesNo(default=False)
 	config.misc.use_ci_assignment = ConfigYesNo(default=False)
 	config.usage.show_event_progress_in_servicelist = ConfigSelection(default='barright', choices=[
@@ -389,6 +401,14 @@ def InitUsageConfig():
 	config.usage.show_channel_numbers_in_servicelist.addNotifier(refreshServiceList)
 
 	config.usage.blinking_display_clock_during_recording = ConfigYesNo(default=False)
+
+	if displaytype == "textlcd" or "text" in displaytype:
+		config.usage.blinking_rec_symbol_during_recording = ConfigSelection(default="Channel", choices=[
+			("Rec", _("REC symbol")),
+			("RecBlink", _("Blinking REC symbol")),
+			("Channel", _("Channel name"))
+		])
+	config.usage.blinking_rec_symbol_during_recording = ConfigYesNo(default=True)
 
 	config.usage.show_message_when_recording_starts = ConfigYesNo(default=True)
 
@@ -426,12 +446,6 @@ def InitUsageConfig():
 	def PreferredTunerChanged(configElement):
 		setPreferredTuner(int(configElement.value))
 	config.usage.frontend_priority.addNotifier(PreferredTunerChanged)
-
-	config.usage.menutype = ConfigSelection(default="standard", choices=[
-		("horzanim", _("Horizontal menu")),
-		("horzicon", _("Horizontal icons")),
-		("standard", _("Standard menu"))
-	])
 
 	config.usage.show_picon_in_display = ConfigYesNo(default=True)
 	config.usage.hide_zap_errors = ConfigYesNo(default=False)
@@ -824,7 +838,7 @@ def InitUsageConfig():
 	config.epg.netmed = ConfigYesNo(default=True)
 	config.epg.virgin = ConfigYesNo(default=False)
 	config.epg.opentv = ConfigYesNo(default=False)
-	config.misc.showradiopic = ConfigYesNo(default=True)
+	config.epg.saveepg = ConfigYesNo(default=True)
 
 
 	config.misc.epgratingcountry = ConfigSelection(default="", choices=[("", _("Auto Detect")), ("ETSI", _("Generic")), ("AUS", _("Australia"))])
@@ -848,7 +862,6 @@ def InitUsageConfig():
 	])
 
 	def EpgSettingsChanged(configElement):
-		from enigma import eEPGCache
 		mask = 0xffffffff
 		if not config.epg.eit.value:
 			mask &= ~(eEPGCache.NOWNEXT | eEPGCache.SCHEDULE | eEPGCache.SCHEDULE_OTHER)
@@ -876,11 +889,17 @@ def InitUsageConfig():
 	config.epg.histminutes = ConfigSelectionNumber(min=0, max=120, stepwidth=15, default=0, wraparound=True)
 
 	def EpgHistorySecondsChanged(configElement):
+		from enigma import eEPGCache
 		eEPGCache.getInstance().setEpgHistorySeconds(config.epg.histminutes.getValue() * 60)
 	config.epg.histminutes.addNotifier(EpgHistorySecondsChanged)
-	
-	config.epg.cacheloadsched = ConfigYesNo(default=False)
-	config.epg.cachesavesched = ConfigYesNo(default=False)
+
+	choicelist = [("newline", _("new line")), ("2newlines", _("2 new lines")), ("space", _("space")), ("dot", " . "), ("dash", " - "), ("asterisk", " * "), ("nothing", _("nothing"))]
+	config.epg.fulldescription_separator = ConfigSelection(default="2newlines", choices=choicelist)
+	choicelist = [("no", _("no")), ("nothing", _("omit")), ("space", _("space")), ("dot", ". "), ("dash", " - "), ("asterisk", " * "), ("hashtag", " # ")]
+	config.epg.replace_newlines = ConfigSelection(default="no", choices=choicelist)
+
+	config.epg.cacheloadsched = ConfigYesNo(default = False)
+	config.epg.cachesavesched = ConfigYesNo(default = False)
 	def EpgCacheLoadSchedChanged(configElement):
 		import EpgLoadSave
 		EpgLoadSave.EpgCacheLoadCheck()
@@ -917,11 +936,6 @@ def InitUsageConfig():
 	config.misc.epggenrecountry = ConfigSelection(default="", choices=[("", _("Auto Detect")), ("ETSI", _("Generic")), ("AUS", _("Australia"))])
 
 	config.misc.showradiopic = ConfigYesNo(default = True)
-
-	choicelist = [("newline", _("new line")), ("2newlines", _("2 new lines")), ("space", _("space")), ("dot", " . "), ("dash", " - "), ("asterisk", " * "), ("nothing", _("nothing"))]
-	config.epg.fulldescription_separator = ConfigSelection(default="2newlines", choices=choicelist)
-	choicelist = [("no", _("no")), ("nothing", _("omit")), ("space", _("space")), ("dot", ". "), ("dash", " - "), ("asterisk", " * "), ("hashtag", " # ")]
-	config.epg.replace_newlines = ConfigSelection(default="no", choices=choicelist)
 
 	def setHDDStandby(configElement):
 		for hdd in harddiskmanager.HDDList():
@@ -1197,7 +1211,6 @@ def InitUsageConfig():
 		("25000", _("25")),
 		("29970", _("29.97")),
 		("30000", _("30"))])
-	config.subtitles.pango_subtitle_removehi = ConfigYesNo(default=False)
 	config.subtitles.pango_autoturnon = ConfigYesNo(default=True)
 
 	config.autolanguage = ConfigSubsection()
