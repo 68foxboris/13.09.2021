@@ -1,3 +1,4 @@
+from Tools.HardwareInfo import HardwareInfo
 from Tools.Profile import profile, profilefinal  # This facilitates the start up progress counter.
 profile("StartPython")
 import Tools.RedirectOutput  # Don't remove this line. This import facilitates connecting stdout and stderr redirections to the log files.
@@ -50,13 +51,6 @@ try:  # Configure the twisted logging
 	log.startLoggingWithObserver(logger.emit)
 except ImportError:
 	print("[StartEnigma] Error: Twisted not available!")
-
-profile("SystemInfo")
-from Components.SystemInfo import SystemInfo
-
-from boxbranding import getBoxType
-
-boxtype = getBoxType()
 
 profile("Imports")
 from os.path import exists, isdir, isfile, islink, join as pathjoin
