@@ -54,6 +54,10 @@ except ImportError:
 profile("SystemInfo")
 from Components.SystemInfo import SystemInfo
 
+from boxbranding import getBoxType
+
+boxtype = getBoxType()
+
 profile("Imports")
 from os.path import exists, isdir, isfile, islink, join as pathjoin
 from traceback import print_exc
