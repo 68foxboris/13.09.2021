@@ -1,19 +1,72 @@
-import sys
-import os
-from Tools.Profile import profile, profile_final
-profile("PYTHON_START")
+from Tools.Profile import profile, profilefinal  # This facilitates the start up progress counter.
+profile("StartPython")
+import Tools.RedirectOutput  # Don't remove this line. This import facilitates connecting stdout and stderr redirections to the log files.
 
-# Don't remove this line. It may seem to do nothing, but if removed,
-# it will break output redirection for crash logs.
-import Tools.RedirectOutput
-import enigma
-import eConsoleImpl
+import enigma  # Establish enigma2 connections to processing methods.
 import eBaseImpl
+import eConsoleImpl
 enigma.eTimer = eBaseImpl.eTimer
 enigma.eSocketNotifier = eBaseImpl.eSocketNotifier
 enigma.eConsoleAppContainer = eConsoleImpl.eConsoleAppContainer
 
+from sys import stdout
+
+profile("Twisted")
+try:  # Configure the twisted processor
+	import twisted.python.runtime
+	twisted.python.runtime.platform.supportsThreads = lambda: True
+	import e2reactor
+	e2reactor.install()
+	# from twisted.python.runtime.platform import supportsThreads
+	# supportsThreads = lambda: True
+	# from e2reactor import install
+	# install()
+	from twisted.internet import reactor
+
+	def runReactor():
+		reactor.run(installSignalHandlers=False)
+
+except ImportError:
+	print("[StartEnigma] Error: Twisted not available!")
+
+	def runReactor():
+		enigma.runMainloop()
+try:  # Configure the twisted logging
+	from twisted.python import log, util
+
+	def quietEmit(self, eventDict):
+		text = log.textFromEventDict(eventDict)
+		if text is None:
+			return
+		formatDict = {
+			"text": text.replace("\n", "\n\t")
+		}
+		msg = log._safeFormat("%(text)s\n", formatDict)
+		util.untilConcludes(self.write, msg)
+		util.untilConcludes(self.flush)
+
+	logger = log.FileLogObserver(stdout)
+	log.FileLogObserver.emit = quietEmit
+	log.startLoggingWithObserver(logger.emit)
+except ImportError:
+	print("[StartEnigma] Error: Twisted not available!")
+
+profile("SystemInfo")
+from Components.SystemInfo import SystemInfo
+
+profile("Imports")
+from os.path import exists, isdir, isfile, islink, join as pathjoin
 from traceback import print_exc
+from time import time
+
+from Components.config import ConfigInteger, ConfigSubsection, ConfigText, ConfigYesNo, NoSave, config, configfile
+from Components.Console import Console
+from Tools.Directories import InitFallbackFiles, SCOPE_CURRENT_SKIN, SCOPE_PLUGINS, resolveFilename
+
+# These entries should be moved back to UsageConfig.py when it is safe to bring UsageConfig init to this location in StartEnigma2.py.
+#
+config.crash = ConfigSubsection()
+config.crash.debugScreens = ConfigYesNo(default=False)
 
 profile("SetupDevices")
 import Components.SetupDevices
@@ -27,10 +80,8 @@ profile("SimpleSummary")
 from Screens import InfoBar
 from Screens.SimpleSummary import SimpleSummary
 
-from sys import stdout
-
 profile("Bouquets")
-from Components.config import config, configfile, ConfigText, ConfigYesNo, ConfigInteger, NoSave
+# from Components.config import config, configfile, ConfigText, ConfigYesNo, ConfigInteger, NoSave
 config.misc.load_unlinked_userbouquets = ConfigYesNo(default=True)
 
 
@@ -52,7 +103,6 @@ profile("LOAD:skin")
 from skin import readSkin
 
 profile("LOAD:Tools")
-from Tools.Directories import InitFallbackFiles, resolveFilename, SCOPE_PLUGINS, SCOPE_CURRENT_SKIN
 InitFallbackFiles()
 
 profile("config.misc")
@@ -71,8 +121,8 @@ config.misc.epgcache_filename = ConfigText(default="/hdd/epg.dat", fixed_size=Fa
 
 
 def setEPGCachePath(configElement):
-	if os.path.isdir(configElement.value) or os.path.islink(configElement.value):
-		configElement.value = os.path.join(configElement.value, "epg.dat")
+	if isdir(configElement.value) or islink(configElement.value):
+		configElement.value = pathjoin(configElement.value, "epg.dat")
 	enigma.eEPGCache.getInstance().setCacheFile(configElement.value)
 
 #demo code for use of standby enter leave callbacks
@@ -93,47 +143,6 @@ def useTransponderTimeChanged(configElement):
 
 
 config.misc.useTransponderTime.addNotifier(useTransponderTimeChanged)
-
-profile("Twisted")
-try:
-	import twisted.python.runtime
-	twisted.python.runtime.platform.supportsThreads = lambda: True
-	import e2reactor
-	e2reactor.install()
-	# from twisted.python.runtime.platform import supportsThreads
-	# supportsThreads = lambda: True
-	# from e2reactor import install
-	# install()
-	from twisted.internet import reactor
-
-	def runReactor():
-		reactor.run(installSignalHandlers=False)
-
-except ImportError:
-	print("[StartEnigma] Error: Twisted not available!")
-
-	def runReactor():
-		enigma.runMainloop()
-
-try:
-	from twisted.python import log, util
-
-	def quietEmit(self, eventDict):
-		text = log.textFromEventDict(eventDict)
-		if text is None:
-			return
-		formatDict = {
-			"text": text.replace("\n", "\n\t")
-		}
-		msg = log._safeFormat("%(text)s\n", formatDict)
-		util.untilConcludes(self.write, msg)
-		util.untilConcludes(self.flush)
-
-	logger = log.FileLogObserver(sys.stdout)
-	log.FileLogObserver.emit = quietEmit
-	log.startLoggingWithObserver(logger.emit)
-except ImportError:
-	print("[StartEnigma] Error: Twisted not available!")
 
 profile("LOAD:Plugin")
 
