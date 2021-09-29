@@ -88,8 +88,6 @@ while : ; do
 		2)
 			/sbin/reboot
 			;;
-		3)
-			;;
 		4)
 			/sbin/rmmod lcd
 			"@sbindir@/fpupgrade" --upgrade 2>&1 | tee /home/root/fpupgrade.log
