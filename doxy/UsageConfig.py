@@ -1,6 +1,6 @@
 from Components.Harddisk import harddiskmanager
 from Components.Console import Console
-from config import ConfigSubsection, ConfigYesNo, config, ConfigSelection, ConfigText, ConfigNumber, ConfigSet, ConfigLocations, ConfigSelectionNumber, ConfigClock, ConfigSlider, ConfigEnableDisable, ConfigSubDict, ConfigDictionarySet, ConfigInteger, ConfigPassword, ConfigIP
+from config import ConfigSubsection, ConfigYesNo, config, ConfigSelection, ConfigText, ConfigNumber, ConfigSet, ConfigLocations, ConfigSelectionNumber, ConfigClock, ConfigSlider, ConfigEnableDisable, ConfigSubDict, ConfigDictionarySet, ConfigInteger, ConfigPassword, ConfigIP, NoSave, ConfigBoolean
 from Tools.Directories import defaultRecordingLocation, SCOPE_HDD, SCOPE_TIMESHIFT, fileContains, resolveFilename, fileHas
 from enigma import setTunerTypePriorityOrder, setPreferredTuner, setSpinnerOnOff, setEnableTtCachingOnOff, eEnv, eDVBDB, Misc_Options, eBackgroundFileEraser, eServiceEvent, eDVBLocalTimeHandler, eEPGCache
 from Components.About import GetIPsFromNetworkInterfaces
@@ -9,7 +9,7 @@ from Components.ServiceList import refreshServiceList
 from SystemInfo import SystemInfo
 from os import mkdir, remove
 from os.path import exists, isfile, islink, join as pathjoin, normpath
-import time
+import os, time, locale, skin
 
 def InitUsageConfig():
 	config.usage = ConfigSubsection()
