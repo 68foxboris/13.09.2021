@@ -43,17 +43,21 @@ while : ; do
 		export ENIGMA_DEBUG_TIME=`grep "config\.crash\.logtimeformat" @sysconfdir@/enigma2/settings | sed -E "s/^.*=(.*)$/\1/" -`
 	fi
 
-	if [ $DEBUG_LVL -lt 4 ]; then
-		LD_PRELOAD="${LIBS}" ENIGMA_DEBUG_LVL="${DEBUG_LVL}" ENIGMA_DEBUG_TIME="${DEBUG_TIME}" "@bindir@/enigma2"
+	if [ "$(grep config.crash.enabledebug /etc/enigma2/settings)" == "config.crash.enabledebug=true" ]; then
+		DEBUG_LVL='4'
+		RANDOMIZE1970=''
+		time=`date +%Y` ;
+		if [ "$time" = 1970 ]; then
+			RANDOMIZE1970="$(strings /dev/urandom | grep -o '[[:alnum:]]' | head -n 5 | tr -d '\n')"
+		fi
+		LOGFOLDER="/home/root/logs/"
+		if [ ! -d $LOGFOLDER ] ; then mkdir -p $LOGFOLDER; fi
+		if [ "$(grep config.crash.debugPath= /etc/enigma2/settings | sed 's/config.crash.debugPath=//g')" != "" -a -d "$(grep config.crash.debugPath= /etc/enigma2/settings | sed 's/config.crash.debugPath=//g')" ]; then
+			LOGFOLDER=$(grep config.crash.debugPath= /etc/enigma2/settings | sed 's/config.crash.debugPath=//g')
+		fi
+		LD_PRELOAD=$LIBS ENIGMA_DEBUG_LVL=$DEBUG_LVL @bindir@/enigma2 &> ${LOGFOLDER}Enigma2-debug-$(date +%Y%m%d_%H-%M-%S)${RANDOMIZE1970}.log
 	else
-		debug_dir=$(sed -n 's/config.crash.debug_path=//p' @sysconfdir@/enigma2/settings)
-		[ -n "${debug_dir}" -a -d "${debug_dir}" ] || debug_dir=/home/root/logs/
-		# remove old logfiles
-		keep=5;
-		for file in `ls -t ${debug_dir}enigma2_debug_*.log`; do let "keep--"; if [ "$keep" -lt "0" ]; then rm $file; fi; done
-		# todays log file
-		file="${debug_dir}enigma2_debug_$(date +%Y-%m-%d_%H-%M-%S).log"
-		LD_PRELOAD="${LIBS}" ENIGMA_DEBUG_LVL="${DEBUG_LVL}" ENIGMA_DEBUG_TIME="${DEBUG_TIME}" "@bindir@/enigma2" >> "${FILE}" 2>&1
+		LD_PRELOAD=$LIBS ENIGMA_DEBUG_LVL=$DEBUG_LVL @bindir@/enigma2
 	fi
 
 
