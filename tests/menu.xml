@@ -59,14 +59,14 @@
 						<item level="0" requires="FrontpanelDisplay" text="Front panel display" entryID="display_skin_selector"><screen module="SkinSelector" screen="LcdSkinSelector"/></item>
 						<item entryID="lcd_setup" requires="Display" text="LCD setup"><setup level="1" id="lcd"/></item>
 					</menu>
-					<menu entryID="usage_setup" level="0" text="Log Manager" weight="2">
-						<id val="logs_menu" />
-						<item entryID="logs_setup" level="2" text="Settings"><setup id="Logs" /></item>
-						<item entryID="logs_man" level="2" text="View Log Manager"><screen module="LogManager" screen="LogManager" /></item>
-					</menu>
 				</menu>
 				<!-- Menu / Setup / EPG -->
-				<menu entryID="epg_menu" level="0" text="EPG" weight="15">
+				<menu entryID="usage_setup" level="0" text="Log Manager" weight="2">
+					<id val="logs_menu" />
+					<item entryID="logs_setup" level="2" text="Settings"><setup id="Logs" /></item>
+					<item entryID="logs_man" level="2" text="View Log Manager"><screen module="LogManager" screen="LogManager" /></item>
+				</menu>
+				<menu level="0" text="EPG" entryID="epg_menu" weight="0">
 					<id val="epg" />
 					<item entryID="epg_setup" level="0" text="EPG Setup" weight="5"><setup id="EPG" /></item>
 					<menu entryID="epgloadsave_menu" level="2" text="Save, Load &amp; Delete EPG Cache" weight="10">
