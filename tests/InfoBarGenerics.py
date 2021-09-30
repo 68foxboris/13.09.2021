@@ -4067,4 +4067,5 @@ class InfoBarHandleBsod:
 			resetBsodCounter()
 		self.infoBsodIsShown = False
 		self.lastestBsodWarning = False
+
 #########################################################################################
