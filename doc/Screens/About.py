@@ -1,9 +1,12 @@
 from Screen import Screen
+from os import listdir, popen, remove
+from os.path import getmtime, isfile, join as pathjoin
+from six import PY2, PY3, ensure_str as ensurestr, text_type as texttype
 from Screens.MessageBox import MessageBox
 from Components.config import config
 from Components.ActionMap import ActionMap
 from Components.Sources.StaticText import StaticText
-from Components.Harddisk import harddiskmanager
+from Components.Harddisk import harddiskmanager, Harddisk
 from Components.NimManager import nimmanager
 from Components.About import about
 from Components.ScrollLabel import ScrollLabel
@@ -11,18 +14,23 @@ from Components.Button import Button
 
 from Components.Label import Label
 from Components.ProgressBar import ProgressBar
+from Components.Pixmap import MultiPixmap
+from Components.Network import iNetwork
 
 from Tools.StbHardware import getFPVersion
 from enigma import eTimer, eLabel, eConsoleAppContainer, getDesktop, eGetEnigmaDebugLvl
 from six import PY2, PY3, ensure_str as ensurestr, text_type as texttype
 
+from Tools.Directories import fileExists, fileHas, pathExists, fileReadLines, fileWriteLine, fileReadLine
 from Components.GUIComponent import GUIComponent
+from Components.Console import Console
 from skin import applySkinFactor, parameters, parseScale
 from Tools.Geolocation import geolocation
 from time import strftime
 
 import os
 
+MODULE_NAME = __name__.split(".")[-1]
 
 class About(Screen):
 	def __init__(self, session):
@@ -223,6 +231,497 @@ class Geolocation(Screen):
 			"up": self["AboutScrollLabel"].pageUp,
 			"down": self["AboutScrollLabel"].pageDown
 		})
+
+
+class Devices(Screen):
+	def __init__(self, session):
+		Screen.__init__(self, session)
+		screentitle = _("Device Information")
+		title = screentitle
+		Screen.setTitle(self, title)
+		self["TunerHeader"] = StaticText(_("Detected tuners:"))
+		self["HDDHeader"] = StaticText(_("Detected devices:"))
+		self["MountsHeader"] = StaticText(_("Network servers:"))
+		self["nims"] = StaticText()
+		for count in (0, 1, 2, 3):
+			self["Tuner" + str(count)] = StaticText("")
+		self["hdd"] = StaticText()
+		self["mounts"] = StaticText()
+		self.list = []
+		self.activityTimer = eTimer()
+		self.activityTimer.timeout.get().append(self.populate2)
+		self["key_red"] = Button(_("Close"))
+		self["actions"] = ActionMap(["SetupActions", "ColorActions", "TimerEditActions"], {
+			"cancel": self.close,
+			"ok": self.close,
+			"red": self.close
+		})
+		self.onLayoutFinish.append(self.populate)
+
+	def populate(self):
+		self.mountinfo = ''
+		self["actions"].setEnabled(False)
+		scanning = _("Please wait while scanning for devices...")
+		self["nims"].setText(scanning)
+		for count in (0, 1, 2, 3):
+			self["Tuner" + str(count)].setText(scanning)
+		self["hdd"].setText(scanning)
+		self['mounts'].setText(scanning)
+		self.activityTimer.start(1)
+
+	def populate2(self):
+		self.activityTimer.stop()
+		self.Console = Console()
+		niminfo = ""
+		nims = nimmanager.nimListCompressed()
+		for count in range(len(nims)):
+			if niminfo:
+				niminfo += "\n"
+			niminfo += nims[count]
+		self["nims"].setText(niminfo)
+
+		nims = nimmanager.nimList()
+		if len(nims) <= 4 :
+			for count in (0, 1, 2, 3):
+				if count < len(nims):
+					self["Tuner" + str(count)].setText(nims[count])
+				else:
+					self["Tuner" + str(count)].setText("")
+		else:
+			desc_list = []
+			count = 0
+			cur_idx = -1
+			while count < len(nims):
+				data = nims[count].split(":")
+				idx = data[0].strip('Tuner').strip()
+				desc = data[1].strip()
+				if desc_list and desc_list[cur_idx]['desc'] == desc:
+					desc_list[cur_idx]['end'] = idx
+				else:
+					desc_list.append({
+						'desc': desc,
+						'start': idx,
+						'end': idx
+					})
+					cur_idx += 1
+				count += 1
+
+			for count in (0, 1, 2, 3):
+				if count < len(desc_list):
+					if desc_list[count]['start'] == desc_list[count]['end']:
+						text = "Tuner %s: %s" % (desc_list[count]['start'], desc_list[count]['desc'])
+					else:
+						text = "Tuner %s-%s: %s" % (desc_list[count]['start'], desc_list[count]['end'], desc_list[count]['desc'])
+				else:
+					text = ""
+
+				self["Tuner" + str(count)].setText(text)
+
+		self.hddlist = harddiskmanager.HDDList()
+		self.list = []
+		if self.hddlist:
+			for count in range(len(self.hddlist)):
+				hdd = self.hddlist[count][1]
+				hddp = self.hddlist[count][0]
+				if "ATA" in hddp:
+					hddp = hddp.replace('ATA', '')
+					hddp = hddp.replace('Internal', 'ATA Bus ')
+				free = hdd.Totalfree()
+				if ((float(free) / 1024) / 1024) >= 1:
+					freeline = _("Free: ") + str(round(((float(free) / 1024) / 1024), 2)) + _("TB")
+				elif (free / 1024) >= 1:
+					freeline = _("Free: ") + str(round((float(free) / 1024), 2)) + _("GB")
+				elif free >= 1:
+					freeline = _("Free: ") + str(free) + _("MB")
+				elif "Generic(STORAGE" in hddp:
+					continue
+				else:
+					freeline = _("Free: ") + _("full")
+				line = "%s      %s" %(hddp, freeline)
+				self.list.append(line)
+		self.list = '\n'.join(self.list)
+		self["hdd"].setText(self.list)
+
+		self.Console.ePopen("df -mh | grep -v '^Filesystem'", self.Stage1Complete)
+
+	def Stage1Complete(self, result, retval, extra_args=None):
+		if PY2:
+			result = result.replace('\n                        ', ' ').split('\n')
+		else:
+			result = result.decode().replace('\n                        ', ' ').split('\n')
+		self.mountinfo = ""
+		for line in result:
+			self.parts = line.split()
+			if line and self.parts[0] and (self.parts[0].startswith('192') or self.parts[0].startswith('//192')):
+				line = line.split()
+				ipaddress = line[0]
+				mounttotal = line[1]
+				mountfree = line[3]
+				if self.mountinfo:
+					self.mountinfo += "\n"
+				self.mountinfo += "%s (%sB, %sB %s)" % (ipaddress, mounttotal, mountfree, _("free"))
+		if pathExists("/media/autofs"):
+			for entry in sorted(listdir("/media/autofs")):
+				mountEntry = pathjoin("/media/autofs", entry)
+				self.mountinfo += _("\n %s " % (mountEntry))
+
+		if self.mountinfo:
+			self["mounts"].setText(self.mountinfo)
+		else:
+			self["mounts"].setText(_('none'))
+		self["actions"].setEnabled(True)
+
+
+class SystemNetworkInfo(Screen):
+	def __init__(self, session):
+		Screen.__init__(self, session)
+		screentitle = _("Network Information")
+		title = screentitle
+		Screen.setTitle(self, title)
+		self.skinName = ["SystemNetworkInfo", "WlanStatus"]
+		self["LabelBSSID"] = StaticText()
+		self["LabelESSID"] = StaticText()
+		self["LabelQuality"] = StaticText()
+		self["LabelSignal"] = StaticText()
+		self["LabelBitrate"] = StaticText()
+		self["LabelEnc"] = StaticText()
+		self["BSSID"] = StaticText()
+		self["ESSID"] = StaticText()
+		self["quality"] = StaticText()
+		self["signal"] = StaticText()
+		self["bitrate"] = StaticText()
+		self["enc"] = StaticText()
+		self["IFtext"] = StaticText()
+		self["IF"] = StaticText()
+		self["Statustext"] = StaticText()
+		self["statuspic"] = MultiPixmap()
+		self["statuspic"].setPixmapNum(1)
+		self["statuspic"].show()
+		self["devicepic"] = MultiPixmap()
+		self["AboutScrollLabel"] = ScrollLabel()
+
+		self.iface = None
+		self.createscreen()
+		self.iStatus = None
+
+		if iNetwork.isWirelessInterface(self.iface):
+			try:
+				from Plugins.SystemPlugins.WirelessLan.Wlan import iStatus
+
+				self.iStatus = iStatus
+			except ImportError as err:
+				pass
+			self.resetList()
+			self.onClose.append(self.cleanup)
+
+		self["key_red"] = StaticText(_("Close"))
+
+		self["actions"] = ActionMap(["SetupActions", "ColorActions", "DirectionActions"], {
+			"cancel": self.close,
+			"ok": self.close,
+			"up": self["AboutScrollLabel"].pageUp,
+			"down": self["AboutScrollLabel"].pageDown
+		})
+		self.onLayoutFinish.append(self.updateStatusbar)
+
+	def createscreen(self):
+		self.AboutText = ""
+		self.iface = "eth0"
+		eth0 = about.getIfConfig('eth0')
+		if 'addr' in eth0:
+			self.AboutText += _("IP:") + "\t" + "\t" + eth0['addr'] + "\n"
+			if 'netmask' in eth0:
+				self.AboutText += _("Netmask:") + "\t" + eth0['netmask'] + "\n"
+			if 'hwaddr' in eth0:
+				self.AboutText += _("MAC:") + "\t" + "\t" + eth0['hwaddr'] + "\n"
+			self.iface = 'eth0'
+
+		eth1 = about.getIfConfig('eth1')
+		if 'addr' in eth1:
+			self.AboutText += _("IP:") + "\t" + "\t" + eth1['addr'] + "\n"
+			if 'netmask' in eth1:
+				self.AboutText += _("Netmask:") + "\t" + eth1['netmask'] + "\n"
+			if 'hwaddr' in eth1:
+				self.AboutText += _("MAC:") + "\t" + "\t" + eth1['hwaddr'] + "\n"
+			self.iface = 'eth1'
+
+		ra0 = about.getIfConfig('ra0')
+		if 'addr' in ra0:
+			self.AboutText += _("IP:") + "\t" + "\t" + ra0['addr'] + "\n"
+			if 'netmask' in ra0:
+				self.AboutText += _("Netmask:") + "\t" + ra0['netmask'] + "\n"
+			if 'hwaddr' in ra0:
+				self.AboutText += _("MAC:") + "\t" + "\t" + ra0['hwaddr'] + "\n"
+			self.iface = 'ra0'
+
+		wlan0 = about.getIfConfig('wlan0')
+		if 'addr' in wlan0:
+			self.AboutText += _("IP:") + "\t" + "\t" + wlan0['addr'] + "\n"
+			if 'netmask' in wlan0:
+				self.AboutText += _("Netmask:") + "\t" + wlan0['netmask'] + "\n"
+			if 'hwaddr' in wlan0:
+				self.AboutText += _("MAC:") + "\t" + "\t" + wlan0['hwaddr'] + "\n"
+			self.iface = 'wlan0'
+
+		wlan3 = about.getIfConfig('wlan3')
+		if 'addr' in wlan3:
+			self.AboutText += _("IP:") + "\t" + "\t" + wlan3['addr'] + "\n"
+			if 'netmask' in wlan3:
+				self.AboutText += _("Netmask:") + "\t" + wlan3['netmask'] + "\n"
+			if 'hwaddr' in wlan3:
+				self.AboutText += _("MAC:") + "\t" + "\t" + wlan3['hwaddr'] + "\n"
+			self.iface = 'wlan3'
+
+		rx_bytes, tx_bytes = about.getIfTransferredData(self.iface)
+		self.AboutText += "\n"
+		self.AboutText += _("Bytes received:") + "\t" + rx_bytes + "\n"
+		self.AboutText += _("Bytes sent:") + "\t" + tx_bytes + "\n"
+
+		geolocationData = geolocation.getGeolocationData(fields="isp,org,mobile,proxy,query", useCache=True)
+		isp = geolocationData.get("isp", None)
+		isporg = geolocationData.get("org", None)
+		if isinstance(isp, texttype):
+			isp = ensurestr(isp.encode(encoding="UTF-8", errors="ignore"))
+		if isinstance(isporg, texttype):
+			isporg = ensurestr(isporg.encode(encoding="UTF-8", errors="ignore"))
+		self.AboutText += "\n"
+		if isp is not None:
+			if isporg is not None:
+				self.AboutText += _("ISP: ") + "\t" + "\t" + isp + " " + "(" + isporg + ")" + "\n"
+			else:
+				self.AboutText +=  "\n" + _("ISP: ") + "\t" + "\t" + isp + "\n"
+
+		mobile = geolocationData.get("mobile", False)
+		if mobile is not False:
+			self.AboutText += _("Mobile: ") + "\t" + "\t" + _("Yes") + "\n"
+		else:
+			self.AboutText += _("Mobile: ") + "\t" + "\t" + _("No") + "\n"
+
+		proxy = geolocationData.get("proxy", False)
+		if proxy is not False:
+			self.AboutText += _("Proxy: ") + "\t" + "\t" + _("Yes") + "\n"
+		else:
+			self.AboutText += _("Proxy: ") + "\t" + "\t" + _("No") + "\n"
+
+		publicip = geolocationData.get("query", None)
+		if str(publicip) != "":
+			self.AboutText +=  _("Public IP: ") + "\t" + "\t" + str(publicip) + "\n" + "\n"
+
+		self.console = Console()
+		self.console.ePopen('ethtool %s' % self.iface, self.SpeedFinished)
+
+	def SpeedFinished(self, result, retval, extra_args):
+		if PY2:
+			result_tmp = result.split('\n')
+		else:
+			result_tmp = result.decode().split('\n')
+		for line in result_tmp:
+			if 'Speed:' in line:
+				speed = line.split(': ')[1][:-4]
+				self.AboutText += _("Speed:") + "\t" + "\t" + speed + _('Mb/s')
+
+		hostname = fileReadLine("/proc/sys/kernel/hostname", source=MODULE_NAME)
+		self.AboutText += "\n" + _("Hostname:") + "\t" + "\t" + hostname + "\n"
+		self["AboutScrollLabel"].setText(self.AboutText)
+
+	def cleanup(self):
+		if self.iStatus:
+			self.iStatus.stopWlanConsole()
+
+	def resetList(self):
+		if self.iStatus:
+			self.iStatus.getDataForInterface(self.iface, self.getInfoCB)
+
+	def getInfoCB(self, data, status):
+		self.LinkState = None
+		if data is not None and data:
+			if status is not None:
+# getDataForInterface()->iwconfigFinished() in
+# Plugins/SystemPlugins/WirelessLan/Wlan.py sets fields to boolean False
+# if there is no info for them, so we need to check that possibility
+# for each status[self.iface] field...
+#
+				if self.iface == 'wlan0' or self.iface == 'wlan3' or self.iface == 'ra0':
+# accesspoint is used in the "enc" code too, so we get it regardless
+#
+					if not status[self.iface]["accesspoint"]:
+						accesspoint = _("Unknown")
+					else:
+						if status[self.iface]["accesspoint"] == "Not-Associated":
+							accesspoint = _("Not-Associated")
+							essid = _("No connection")
+						else:
+							accesspoint = status[self.iface]["accesspoint"]
+					if 'BSSID' in self:
+						self.AboutText += _('Accesspoint:') + '\t' + accesspoint + '\n'
+
+					if 'ESSID' in self:
+						if not status[self.iface]["essid"]:
+							essid = _("Unknown")
+						else:
+							if status[self.iface]["essid"] == "off":
+								essid = _("No connection")
+							else:
+								essid = status[self.iface]["essid"]
+						self.AboutText += _('SSID:') + '\t' + essid + '\n'
+
+					if 'quality' in self:
+						if not status[self.iface]["quality"]:
+							quality = _("Unknown")
+						else:
+							quality = status[self.iface]["quality"]
+						self.AboutText += _('Link quality:') + '\t' + quality + '\n'
+
+					if 'bitrate' in self:
+						if not status[self.iface]["bitrate"]:
+							bitrate = _("Unknown")
+						else:
+							if status[self.iface]["bitrate"] == '0':
+								bitrate = _("Unsupported")
+							else:
+								bitrate = str(status[self.iface]["bitrate"]) + " Mb/s"
+						self.AboutText += _('Bitrate:') + '\t' + bitrate + '\n'
+
+					if 'signal' in self:
+						if not status[self.iface]["signal"]:
+							signal = _("Unknown")
+						else:
+							signal = status[self.iface]["signal"]
+						self.AboutText += _('Signal strength:') + '\t' + signal + '\n'
+
+					if 'enc' in self:
+						if not status[self.iface]["encryption"]:
+							encryption = _("Unknown")
+						else:
+							if status[self.iface]["encryption"] == "off":
+								if accesspoint == "Not-Associated":
+									encryption = _("Disabled")
+								else:
+									encryption = _("Unsupported")
+							else:
+								encryption = _("Enabled")
+						self.AboutText += _('Encryption:') + '\t' + encryption + '\n'
+
+					if ((status[self.iface]["essid"] and status[self.iface]["essid"] == "off") or
+					    not status[self.iface]["accesspoint"] or
+					    status[self.iface]["accesspoint"] == "Not-Associated"):
+						self.LinkState = False
+						self["statuspic"].setPixmapNum(1)
+						self["statuspic"].show()
+					else:
+						self.LinkState = True
+						iNetwork.checkNetworkState(self.checkNetworkCB)
+					self["AboutScrollLabel"].setText(self.AboutText)
+
+	def exit(self):
+		self.close(True)
+
+	def updateStatusbar(self):
+		self["IFtext"].setText(_("Network:"))
+		self["IF"].setText(iNetwork.getFriendlyAdapterName(self.iface))
+		self["Statustext"].setText(_("Link:"))
+		if iNetwork.isWirelessInterface(self.iface):
+			self["devicepic"].setPixmapNum(1)
+			try:
+				self.iStatus.getDataForInterface(self.iface, self.getInfoCB)
+			except Exception as err:
+				self["statuspic"].setPixmapNum(1)
+				self["statuspic"].show()
+		else:
+			iNetwork.getLinkState(self.iface, self.dataAvail)
+			self["devicepic"].setPixmapNum(0)
+		self["devicepic"].show()
+
+	def dataAvail(self, data):
+		if PY3:
+			data = data.decode()
+		self.LinkState = None
+		for line in data.splitlines():
+			line = line.strip()
+			if 'Link detected:' in line:
+				if "yes" in line:
+					self.LinkState = True
+				else:
+					self.LinkState = False
+		if self.LinkState:
+			iNetwork.checkNetworkState(self.checkNetworkCB)
+		else:
+			self["statuspic"].setPixmapNum(1)
+			self["statuspic"].show()
+
+	def checkNetworkCB(self, data):
+		try:
+			if iNetwork.getAdapterAttribute(self.iface, "up") is True:
+				if self.LinkState is True:
+					if data <= 2:
+						self["statuspic"].setPixmapNum(0)
+					else:
+						self["statuspic"].setPixmapNum(1)
+				else:
+					self["statuspic"].setPixmapNum(1)
+			else:
+				self["statuspic"].setPixmapNum(1)
+			self["statuspic"].show()
+		except Exception as err:
+			pass
+
+
+class SystemMemoryInfo(Screen):
+	def __init__(self, session):
+		Screen.__init__(self, session)
+		screentitle = _("Memory Information")
+		title = screentitle
+		Screen.setTitle(self, title)
+		self.skinName = ["SystemMemoryInfo", "About"]
+		self["AboutScrollLabel"] = ScrollLabel()
+		self["key_red"] = Button(_("Close"))
+		self["actions"] = ActionMap(["SetupActions", "ColorActions"], {
+			"cancel": self.close,
+			"ok": self.close,
+			"red": self.close
+		})
+
+		out_lines = fileReadLines("/proc/meminfo", source=MODULE_NAME)
+		self.AboutText = _("RAM") + '\n\n'
+		RamTotal = "-"
+		RamFree = "-"
+		for lidx in range(len(out_lines) - 1):
+			tstLine = out_lines[lidx].split()
+			if "MemTotal:" in tstLine:
+				MemTotal = out_lines[lidx].split()
+				self.AboutText += _("Total memory:") + "\t" + "\t" + MemTotal[1] + "\n"
+			if "MemFree:" in tstLine:
+				MemFree = out_lines[lidx].split()
+				self.AboutText += _("Free memory:") + "\t" + "\t" + MemFree[1] + "\n"
+			if "Buffers:" in tstLine:
+				Buffers = out_lines[lidx].split()
+				self.AboutText += _("Buffers:") + "\t" + "\t" + Buffers[1] + "\n"
+			if "Cached:" in tstLine:
+				Cached = out_lines[lidx].split()
+				self.AboutText += _("Cached:") + "\t" + "\t" + Cached[1] + "\n"
+			if "SwapTotal:" in tstLine:
+				SwapTotal = out_lines[lidx].split()
+				self.AboutText += _("Total swap:") + "\t" + "\t" + SwapTotal[1] + "\n"
+			if "SwapFree:" in tstLine:
+				SwapFree = out_lines[lidx].split()
+				self.AboutText += _("Free swap:") + "\t" + "\t" + SwapFree[1] + "\n\n"
+
+		self["actions"].setEnabled(False)
+		self.Console = Console()
+		self.Console.ePopen("df -mh / | grep -v '^Filesystem'", self.Stage1Complete2)
+
+	def Stage1Complete2(self, result, retval, extra_args=None):
+		flash = str(result).replace('\n', '')
+		flash = flash.split()
+		RamTotal = flash[1]
+		RamFree = flash[3]
+
+		self.AboutText += _("Total:") + "\t" + "\t" + RamTotal + "\n"
+		self.AboutText += _("Free:") + "\t" + "\t" + RamFree + "\n\n"
+
+		self["AboutScrollLabel"].setText(self.AboutText)
+		self["actions"].setEnabled(True)
+
 
 class TranslationInfo(Screen):
 	def __init__(self, session):

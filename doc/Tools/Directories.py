@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import errno
-import inspect
 import os
 from os import F_OK, R_OK, W_OK, access, chmod, listdir, makedirs, mkdir, readlink, rename, rmdir, sep, stat, statvfs, symlink, utime, walk
 from os.path import isdir, isfile, join as pathjoin
 from enigma import eEnv, getDesktop, eGetEnigmaDebugLvl
 from errno import ENOENT, EXDEV
+from inspect import stack
 from re import compile
 from stat import S_IMODE
 

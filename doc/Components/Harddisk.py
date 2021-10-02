@@ -1,5 +1,7 @@
 import os
 import time
+from os import listdir, major, minor, popen, rmdir, sep, stat, statvfs
+from os.path import abspath, dirname, exists, ismount, join as pathjoin, normpath, realpath
 from Tools.CList import CList
 from SystemInfo import SystemInfo
 from Components.Console import Console
