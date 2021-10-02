@@ -5,6 +5,7 @@ import time
 import re
 from Tools.HardwareInfo import HardwareInfo
 from Tools.Directories import fileReadLine
+from subprocess import PIPE, Popen
 
 MODULE_NAME = __name__.split(".")[-1]
 
