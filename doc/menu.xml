@@ -50,14 +50,14 @@
 					<id val="gui"/>
 					<item level="0" text="Language" entryID="language_setup"><screen module="LanguageSelection"/></item>
 					<!-- Menu / Setup / Time -->
-					<item entryID="time_setup" level="0" text="Time" weight="50"><screen module="Time" 
+					<item entryID="time_setup" level="0" text="Time" weight="50"><screen module="Time" screen="Time" /></item>
 					<item level="0" entryID="user_interface" text="User Interface" ><setup id="userinterface"/></item>
 					<item level="0" entryID="usage_setup"><setup id="usage"/></item>
 					<item level="0" text="Skin" entryID="primary_skin_selector"><screen module="SkinSelector" screen="SkinSelector"/></item>
-					<menu entryID="display_selection" level="0" text="Front Panel Display" requires="Display">
+					<menu entryID="display_selection" level="0" text="Front Panel Display">
 						<id val="lcd" />
-						<item entryID="display_skin_selector" level="0" text="Skin Setup" weight="5"><screen module="SkinSelector" screen="LcdSkinSelector" /></item>
-						<item entryID="lcd_setup" level="1" text="LCD Setup" weight="10"><setup id="FrontDisplay" /></item>
+						<item entryID="display_skin_selector" level="0" text="Skin Setup" weight="5" requires="Display"><screen module="SkinSelector" screen="LcdSkinSelector" /></item>
+						<item entryID="lcd_setup" level="1" text="LCD Setup" weight="10" requires="Display"><setup id="FrontDisplay" /></item>
 						<item entryID="led_setup" level="1" text="LED Setup" weight="15"><setup id="LedDisplay" /></item>
 					</menu>
 				</menu>
@@ -67,7 +67,8 @@
 					<item entryID="logs_setup" level="2" text="Settings"><setup id="Logs" /></item>
 					<item entryID="logs_man" level="2" text="View Log Manager"><screen module="LogManager" screen="LogManager" /></item>
 				</menu>
-				<menu level="0" text="EPG" entryID="epg_menu" weight="0">
+				<!-- Menu / Setup / EPG -->
+				<menu entryID="epg_menu" level="0" text="EPG" weight="15">
 					<id val="epg" />
 					<item entryID="epg_setup" level="0" text="EPG Setup" weight="5"><setup id="EPG" /></item>
 					<menu entryID="epgloadsave_menu" level="2" text="Save, Load &amp; Delete EPG Cache" weight="10">
@@ -111,10 +112,6 @@ self.session.openWithCallback(msgClosed, EpgDeleteMsg)
 						</item>
 					</menu>
 				</menu>
-				<menu level="0" text="EPG" entryID="epg_menu">
-					<id val="epg"/>
-					<item level="0" entryID="epg_setup"><setup id="epgsettings"/></item>
-				</menu>
 				<item level="1" entryID="rfmod_setup" requires="RfModulator"><setup id="RFmod"/></item>
 				<menu level="0" text="Expert settings" entryID="expert_selection">
 				<id val="expert"/>
@@ -151,7 +148,7 @@ self.session.openWithCallback(msgClosed, EpgDeleteMsg)
 			<item weight="15" level="0" text="Factory reset" entryID="factory_reset"><screen module="FactoryReset" screen="FactoryReset"/></item>
 			<item weight="15" level="0" text="Flash image" entryID="flash_image" requires="canFlashWithOfgwrite" ><screen module="FlashImage" screen="SelectImage"/></item>
 			<item weight="15" level="0" text="Software update" entryID="software_update"><screen module="SoftwareUpdate" screen="UpdatePlugin"/></item>
-			</menu>
+		</menu>
 
 		<menu text="Standby / restart" entryID="standby_restart_list">
 			<id val="shutdown"/>
