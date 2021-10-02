@@ -77,6 +77,8 @@ class About(Screen):
 		self["FFmpegVersion"] = StaticText(FFmpegVersion)
 		AboutText += FFmpegVersion + "\n"
 
+		AboutText += _("GCC version: ") + about.getGccVersion() + "\n"
+		AboutText += _("Glibc version: ") + about.getGlibcVersion() + "\n"
 		AboutText += _("Python version: ") + about.getPythonVersionString() + "\n"
 
 		AboutText += _("Enigma (re)starts: %d\n") % config.misc.startCounter.value
