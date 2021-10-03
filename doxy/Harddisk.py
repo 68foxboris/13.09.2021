@@ -201,6 +201,23 @@ class Harddisk:
 				pass
 		return -1
 
+	def totalFree(self):
+		mediapath = []
+		freetot = 0
+		for parts in getProcMounts():
+			if realpath(parts[0]).startswith(self.dev_path):
+				mediapath.append(parts[1])
+		for mpath in mediapath:
+			try:
+				stat = statvfs(mpath)
+				freetot += (stat.f_bfree / 1000) * (stat.f_bsize / 1000)
+			except (IOError, OSError):
+				pass
+		return freetot
+
+	def Totalfree(self):
+		return self.totalFree()
+
 	def numPartitions(self):
 		numPart = -1
 		if self.type == DEVTYPE_UDEV:
