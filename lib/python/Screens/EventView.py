@@ -359,10 +359,12 @@ class EventViewEPGSelect(Screen, EventViewBase):
 
 	def openSingleEPG(self):
 		self.hide()
-		self.singleEPGCB()
+		self.singleEPGCB:
+			self.singleEPGCB()
 		self.close()
 
 	def openMultiEPG(self):
 		self.hide()
-		self.multiEPGCB()
+		self.multiEPGCB:
+			self.multiEPGCB()
 		self.close()
