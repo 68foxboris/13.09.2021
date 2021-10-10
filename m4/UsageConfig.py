@@ -1,7 +1,7 @@
 from Components.Harddisk import harddiskmanager
 from Components.Console import Console
 from config import ConfigSubsection, ConfigYesNo, config, ConfigSelection, ConfigText, ConfigNumber, ConfigSet, ConfigLocations, ConfigSelectionNumber, ConfigClock, ConfigSlider, ConfigEnableDisable, ConfigSubDict, ConfigDictionarySet, ConfigInteger, ConfigPassword, ConfigIP, NoSave, ConfigBoolean
-from Tools.Directories import SCOPE_HDD, SCOPE_TIMESHIFT, defaultRecordingLocation, fileContains, resolveFilename, fileHas
+from Tools.Directories import SCOPE_HDD, SCOPE_TIMESHIFT, defaultRecordingLocation, fileContains, resolveFilename
 from enigma import setTunerTypePriorityOrder, setPreferredTuner, setSpinnerOnOff, setEnableTtCachingOnOff, eEnv, eDVBDB, Misc_Options, eBackgroundFileEraser, eServiceEvent, eDVBLocalTimeHandler, eEPGCache
 from Components.About import GetIPsFromNetworkInterfaces
 from Components.NimManager import nimmanager
@@ -16,7 +16,7 @@ displaytype = getDisplayType()
 
 def InitUsageConfig():
 	config.usage = ConfigSubsection()
-	if fileHas("/etc/network/interfaces","iface eth0 inet static") and not fileHas("/etc/network/interfaces","iface wlan0 inet dhcp") or fileHas("/etc/network/interfaces","iface wlan0 inet static") and fileHas("/run/ifstate","wlan0=wlan0"):
+	if fileContains("/etc/network/interfaces","iface eth0 inet static") and not fileContains("/etc/network/interfaces","iface wlan0 inet dhcp") or fileContains("/etc/network/interfaces","iface wlan0 inet static") and fileContains("/run/ifstate","wlan0=wlan0"):
 		config.usage.dns = ConfigSelection(default = "custom", choices = [("custom", _("Static IP or Custom")), ("google", _("Google DNS")), ("cloudflare", _("Cloudfare")), ("opendns-familyshield", _("OpenDNS FamilyShield")), ("opendns-home", _("OpenDNS Home"))])
 	else:
 		config.usage.dns = ConfigSelection(default = "dhcp-router", choices = [("dhcp-router", _("DHCP router")), ("custom", _("Static IP or Custom")), ("google", _("Google DNS")), ("cloudflare", _("Cloudfare")), ("opendns-familyshield", _("OpenDNS FamilyShield")), ("opendns-home", _("OpenDNS Home"))])
@@ -209,12 +209,18 @@ def InitUsageConfig():
 	config.usage.timeshift_path.save()
 	config.usage.allowed_timeshift_paths = ConfigLocations(default=[resolveFilename(SCOPE_TIMESHIFT)])
 
+	config.usage.trashsort_deltime = ConfigSelection(default = "no", choices = [
+		("no", _("no")),
+		("show record time", _("Yes, show record time")),
+		("show delete time", _("Yes, show delete time"))])
 	config.usage.movielist_trashcan = ConfigYesNo(default=True)
-	config.usage.movielist_trashcan_days = ConfigNumber(default=8)
-	config.usage.movielist_trashcan_reserve = ConfigNumber(default=40)
-	config.usage.on_movie_start = ConfigSelection(default="resume", choices=[
-		("ask yes", _("Ask user") + " " + _("default") + " " + _("yes")),
-		("ask no", _("Ask user") + " " + _("default") + " " + _("no")),
+	config.usage.movielist_trashcan_network_clean = ConfigYesNo(default=False)
+
+	config.usage.movielist_trashcan_days = ConfigSelectionNumber(min = 0, max = 31, stepwidth = 1, default = 8, wraparound = True)
+	config.usage.movielist_trashcan_reserve = ConfigNumber(default = 40)
+	config.usage.on_movie_start = ConfigSelection(default = "ask yes", choices = [
+		("ask yes", _("Ask user (with default as 'yes')")),
+		("ask no", _("Ask user (with default as 'no')")),
 		("resume", _("Resume from last position")),
 		("beginning", _("Start from the beginning"))])
 	config.usage.on_movie_stop = ConfigSelection(default="movielist", choices=[
@@ -224,8 +230,8 @@ def InitUsageConfig():
 		("playlistquit", _("Play next (return to previous service)")), ("loop", _("Continues play (loop)")), ("repeatcurrent", _("Repeat"))])
 	config.usage.next_movie_msg = ConfigYesNo(default=True)
 	config.usage.last_movie_played = ConfigText()
-	config.usage.leave_movieplayer_onExit = ConfigSelection(default="popup", choices=[
-		("no", _("no")), ("popup", _("With popup")), ("without popup", _("Without popup")), ("movielist", _("Return to movie list"))])
+	config.usage.leave_movieplayer_onExit = ConfigSelection(default = "popup", choices = [
+		("no", _("No")), ("popup", _("With popup")), ("without popup", _("Without popup")) ])
 
 	config.usage.setup_level = ConfigSelection(default="expert", choices=[
 		("simple", _("Normal")),
@@ -409,7 +415,12 @@ def InitUsageConfig():
 		('s', _("Small progress")),
 		('i', _("Icons")),
 	])
-	config.usage.movielist_unseen = ConfigYesNo(default=False)
+	config.usage.movielist_unseen = ConfigYesNo(default = True)
+	config.usage.movielist_servicename_mode = ConfigSelection(default = "", choices = [
+		("", _("None")),
+		("picon", _("Picon"))
+	])
+	config.usage.movielist_piconwidth = ConfigSelectionNumber(default = 100, stepwidth = 1, min = 50, max = 500, wraparound = True)
 
 	config.usage.swap_snr_on_osd = ConfigYesNo(default=False)
 	config.usage.swap_time_display_on_osd = ConfigSelection(default = "0", choices = [("0", _("Skin Setting")), ("1", _("Mins")), ("2", _("Mins Secs")), ("3", _("Hours Mins")), ("4", _("Hours Mins Secs")), ("5", _("Percentage"))])
@@ -952,7 +963,7 @@ def InitUsageConfig():
 	config.crash.bsodpython = ConfigYesNo(default=True)
 	config.crash.bsodpython_ready = NoSave(ConfigYesNo(default=False))
 	choicelist = [("0", _("never")), ("1", "1"), ("2", "2"), ("3", "3"), ("4", "4"), ("5", "5"), ("6", "6"), ("7", "7"), ("8", "8"), ("9", "9"), ("10", "10")]
-	config.crash.bsodhide = ConfigSelection(default="0", choices=choicelist)
+	config.crash.bsodhide = ConfigSelection(default="1", choices=choicelist)
 	config.crash.bsodmax = ConfigSelection(default="3", choices=choicelist)
 	#//
 
