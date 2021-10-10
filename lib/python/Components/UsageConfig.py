@@ -1,19 +1,25 @@
 from Components.Harddisk import harddiskmanager
 from Components.Console import Console
 from config import ConfigSubsection, ConfigYesNo, config, ConfigSelection, ConfigText, ConfigNumber, ConfigSet, ConfigLocations, ConfigSelectionNumber, ConfigClock, ConfigSlider, ConfigEnableDisable, ConfigSubDict, ConfigDictionarySet, ConfigInteger, ConfigPassword, ConfigIP, NoSave, ConfigBoolean
-from Tools.Directories import defaultRecordingLocation, SCOPE_HDD, SCOPE_TIMESHIFT, fileContains, resolveFilename, fileHas
+from Tools.Directories import SCOPE_HDD, SCOPE_TIMESHIFT, defaultRecordingLocation, fileContains, resolveFilename, fileHas
 from enigma import setTunerTypePriorityOrder, setPreferredTuner, setSpinnerOnOff, setEnableTtCachingOnOff, eEnv, eDVBDB, Misc_Options, eBackgroundFileEraser, eServiceEvent, eDVBLocalTimeHandler, eEPGCache
 from Components.About import GetIPsFromNetworkInterfaces
 from Components.NimManager import nimmanager
 from Components.ServiceList import refreshServiceList
 from SystemInfo import SystemInfo
-from os import mkdir, remove
 from os.path import exists, islink, join as pathjoin, normpath
 import os, time, locale, skin
+from boxbranding import getDisplayType
+
+displaytype = getDisplayType()
 
 
 def InitUsageConfig():
 	config.usage = ConfigSubsection()
+	if fileHas("/etc/network/interfaces","iface eth0 inet static") and not fileHas("/etc/network/interfaces","iface wlan0 inet dhcp") or fileHas("/etc/network/interfaces","iface wlan0 inet static") and fileHas("/run/ifstate","wlan0=wlan0"):
+		config.usage.dns = ConfigSelection(default = "custom", choices = [("custom", _("Static IP or Custom")), ("google", _("Google DNS")), ("cloadflare", _("Cloadfare")), ("opendns-familyshield", _("OpenDNS FamilyShield")), ("opendns-home", _("OpenDNS Home"))])
+	else:
+		config.usage.dns = ConfigSelection(default = "dhcp-router", choices = [("dhcp-router", _("DHCP router")), ("custom", _("Static IP or Custom")), ("google", _("Google DNS")), ("cloadflare", _("Cloadfare")), ("opendns-familyshield", _("OpenDNS FamilyShield")), ("opendns-home", _("OpenDNS Home"))])
 	config.usage.subnetwork = ConfigYesNo(default=True)
 	config.usage.subnetwork_cable = ConfigYesNo(default=True)
 	config.usage.subnetwork_terrestrial = ConfigYesNo(default=True)
@@ -158,7 +164,7 @@ def InitUsageConfig():
 
 	if not exists(resolveFilename(SCOPE_HDD)):
 		try:
-			mkdir(resolveFilename(SCOPE_HDD), 0755)
+			os.mkdir(resolveFilename(SCOPE_HDD), 0755)
 		except (IOError, OSError):
 			pass
 	defaultValue = resolveFilename(SCOPE_HDD)
@@ -189,7 +195,7 @@ def InitUsageConfig():
 	config.usage.instantrec_path.save()
 	if not exists(resolveFilename(SCOPE_TIMESHIFT)):
 		try:
-			mkdir(resolveFilename(SCOPE_TIMESHIFT), 0755)
+			os.mkdir(resolveFilename(SCOPE_TIMESHIFT), 0755)
 		except:
 			pass
 	defaultValue = resolveFilename(SCOPE_TIMESHIFT)
@@ -203,12 +209,18 @@ def InitUsageConfig():
 	config.usage.timeshift_path.save()
 	config.usage.allowed_timeshift_paths = ConfigLocations(default=[resolveFilename(SCOPE_TIMESHIFT)])
 
+	config.usage.trashsort_deltime = ConfigSelection(default = "no", choices = [
+		("no", _("no")),
+		("show record time", _("Yes, show record time")),
+		("show delete time", _("Yes, show delete time"))])
 	config.usage.movielist_trashcan = ConfigYesNo(default=True)
-	config.usage.movielist_trashcan_days = ConfigNumber(default=8)
-	config.usage.movielist_trashcan_reserve = ConfigNumber(default=40)
-	config.usage.on_movie_start = ConfigSelection(default="resume", choices=[
-		("ask yes", _("Ask user") + " " + _("default") + " " + _("yes")),
-		("ask no", _("Ask user") + " " + _("default") + " " + _("no")),
+	config.usage.movielist_trashcan_network_clean = ConfigYesNo(default=False)
+
+	config.usage.movielist_trashcan_days = ConfigSelectionNumber(min = 0, max = 31, stepwidth = 1, default = 8, wraparound = True)
+	config.usage.movielist_trashcan_reserve = ConfigNumber(default = 40)
+	config.usage.on_movie_start = ConfigSelection(default = "ask yes", choices = [
+		("ask yes", _("Ask user (with default as 'yes')")),
+		("ask no", _("Ask user (with default as 'no')")),
 		("resume", _("Resume from last position")),
 		("beginning", _("Start from the beginning"))])
 	config.usage.on_movie_stop = ConfigSelection(default="movielist", choices=[
@@ -218,8 +230,8 @@ def InitUsageConfig():
 		("playlistquit", _("Play next (return to previous service)")), ("loop", _("Continues play (loop)")), ("repeatcurrent", _("Repeat"))])
 	config.usage.next_movie_msg = ConfigYesNo(default=True)
 	config.usage.last_movie_played = ConfigText()
-	config.usage.leave_movieplayer_onExit = ConfigSelection(default="popup", choices=[
-		("no", _("no")), ("popup", _("With popup")), ("without popup", _("Without popup")), ("movielist", _("Return to movie list"))])
+	config.usage.leave_movieplayer_onExit = ConfigSelection(default = "popup", choices = [
+		("no", _("No")), ("popup", _("With popup")), ("without popup", _("Without popup")) ])
 
 	config.usage.setup_level = ConfigSelection(default="expert", choices=[
 		("simple", _("Normal")),
@@ -310,6 +322,35 @@ def InitUsageConfig():
 		("5", "DVB-T/-S/-C"),
 		("127", _("No priority"))])
 
+	config.usage.frontled_color = ConfigSelection(default="2", choices=[
+		("0", _("Off")),
+		("1", _("Blue")),
+		("2", _("Red")),
+		("3", _("Blinking blue")),
+		("4", _("Blinking red"))
+	])
+	config.usage.frontledrec_color = ConfigSelection(default="3", choices=[
+		("0", _("Off")),
+		("1", _("Blue")),
+		("2", _("Red")),
+		("3", _("Blinking blue")),
+		("4", _("Blinking red"))
+	])
+	config.usage.frontledstdby_color = ConfigSelection(default="0", choices=[
+		("0", _("Off")),
+		("1", _("Blue")),
+		("2", _("Red")),
+		("3", _("Blinking blue")),
+		("4", _("Blinking red"))
+	])
+	config.usage.frontledrecstdby_color = ConfigSelection(default="3", choices=[
+		("0", _("Off")),
+		("1", _("Blue")),
+		("2", _("Red")),
+		("3", _("Blinking blue")),
+		("4", _("Blinking red"))
+	])
+
 	def remote_fallback_changed(configElement):
 		if configElement.value:
 			configElement.value = "%s%s" % (not configElement.value.startswith("http://") and "http://" or "", configElement.value)
@@ -357,6 +398,14 @@ def InitUsageConfig():
 
 	config.usage.blinking_display_clock_during_recording = ConfigYesNo(default=False)
 
+	if displaytype == "textlcd" or "text" in displaytype:
+		config.usage.blinking_rec_symbol_during_recording = ConfigSelection(default="Channel", choices=[
+			("Rec", _("REC symbol")),
+			("RecBlink", _("Blinking REC symbol")),
+			("Channel", _("Channel name"))
+		])
+	config.usage.blinking_rec_symbol_during_recording = ConfigYesNo(default=True)
+
 	config.usage.show_message_when_recording_starts = ConfigYesNo(default=True)
 
 	config.usage.load_length_of_movies_in_moviellist = ConfigYesNo(default=True)
@@ -366,7 +415,12 @@ def InitUsageConfig():
 		('s', _("Small progress")),
 		('i', _("Icons")),
 	])
-	config.usage.movielist_unseen = ConfigYesNo(default=False)
+	config.usage.movielist_unseen = ConfigYesNo(default = True)
+	config.usage.movielist_servicename_mode = ConfigSelection(default = "", choices = [
+		("", _("None")),
+		("picon", _("Picon"))
+	])
+	config.usage.movielist_piconwidth = ConfigSelectionNumber(default = 100, stepwidth = 1, min = 50, max = 500, wraparound = True)
 
 	config.usage.swap_snr_on_osd = ConfigYesNo(default=False)
 	config.usage.swap_time_display_on_osd = ConfigSelection(default = "0", choices = [("0", _("Skin Setting")), ("1", _("Mins")), ("2", _("Mins Secs")), ("3", _("Hours Mins")), ("4", _("Hours Mins Secs")), ("5", _("Percentage"))])
@@ -377,8 +431,6 @@ def InitUsageConfig():
 	config.usage.swap_media_time_display_on_vfd = ConfigSelection(default = "0", choices = [("0", _("Skin Setting")), ("1", _("Mins")), ("2", _("Mins Secs")), ("3", _("Hours Mins")), ("4", _("Hours Mins Secs")), ("5", _("Percentage"))])
 	config.usage.swap_time_remaining_on_vfd = ConfigSelection(default = "0", choices = [("0", _("Remaining")), ("1", _("Elapsed")), ("2", _("Elapsed & Remaining")), ("3", _("Remaining & Elapsed"))])
 	config.usage.elapsed_time_positive_vfd = ConfigYesNo(default = False)
-
-	config.usage.menutype = ConfigSelection(default='standard', choices=[('horzanim', _('Horizontal menu')), ('horzicon', _('Horizontal icons')), ('standard', _('Standard menu'))])
 
 	def SpinnerOnOffChanged(configElement):
 		setSpinnerOnOff(int(configElement.value))
@@ -395,6 +447,12 @@ def InitUsageConfig():
 	def PreferredTunerChanged(configElement):
 		setPreferredTuner(int(configElement.value))
 	config.usage.frontend_priority.addNotifier(PreferredTunerChanged)
+
+	config.usage.menutype = ConfigSelection(default="standard", choices=[
+		("horzanim", _("Horizontal menu")),
+		("horzicon", _("Horizontal icons")),
+		("standard", _("Standard menu"))
+	])
 
 	config.usage.show_picon_in_display = ConfigYesNo(default=True)
 	config.usage.hide_zap_errors = ConfigYesNo(default=False)
@@ -901,6 +959,47 @@ def InitUsageConfig():
 	config.usage.alternative_imagefeed = ConfigText(default="", fixed_size=False)
 
 	config.crash = ConfigSubsection()
+	#// handle python crashes
+	config.crash.bsodpython = ConfigYesNo(default=True)
+	config.crash.bsodpython_ready = NoSave(ConfigYesNo(default=False))
+	choicelist = [("0", _("never")), ("1", "1"), ("2", "2"), ("3", "3"), ("4", "4"), ("5", "5"), ("6", "6"), ("7", "7"), ("8", "8"), ("9", "9"), ("10", "10")]
+	config.crash.bsodhide = ConfigSelection(default="1", choices=choicelist)
+	config.crash.bsodmax = ConfigSelection(default="3", choices=choicelist)
+	#//
+
+	config.crash.enabledebug = ConfigYesNo(default=False)
+	config.crash.debugloglimit = ConfigSelectionNumber(min=1, max=10, stepwidth=1, default=4, wraparound=True)
+	config.crash.daysloglimit = ConfigSelectionNumber(min=1, max=30, stepwidth=1, default=8, wraparound=True)
+	config.crash.sizeloglimit = ConfigSelectionNumber(min=1, max=20, stepwidth=1, default=10, wraparound=True)
+	config.crash.lastfulljobtrashtime = ConfigInteger(default=-1)
+
+	debugPath = [('/home/root/logs/', '/home/root/')]
+	for p in harddiskmanager.getMountedPartitions():
+		if os.path.exists(p.mountpoint):
+			d = os.path.normpath(p.mountpoint)
+			if p.mountpoint != '/':
+				debugPath.append((p.mountpoint + '/logs/', d))
+	config.crash.debugPath = ConfigSelection(default="/home/root/logs/", choices=debugPath)
+	if not os.path.exists("/home"):
+		os.mkdir("/home", 0755)
+	if not os.path.exists("/home/root"):
+		os.mkdir("/home/root", 0755)
+
+	def updatedebugPath(configElement):
+		if not os.path.exists(config.crash.debugPath.value):
+			try:
+				os.mkdir(config.crash.debugPath.value, 0755)
+			except:
+				print "Failed to create log path: %s" % config.crash.debugPath.value
+	config.crash.debugPath.addNotifier(updatedebugPath, immediate_feedback=False)
+
+	crashlogheader = _("We are really sorry. Your receiver encountered "
+					 "a software problem, and needs to be restarted.\n"
+					 "Please send the logfile %senigma2_crash_xxxxxx.log to https://github.com/fairbird/enigma2.\n"
+					 "Your receiver restarts in 10 seconds!\n"
+					 "Component: enigma2") % config.crash.debugPath.value
+	config.crash.debug_text = ConfigText(default=crashlogheader, fixed_size=False)
+	config.crash.skin_error_crash = ConfigYesNo(default=True)
 
 	def updateStackTracePrinter(configElement):
 		from Components.StackTrace import StackTracePrinter
@@ -912,41 +1011,8 @@ def InitUsageConfig():
 		else:
 			StackTracePrinter.getInstance().deactivate()
 
-	config.crash.pythonStackOnSpinner = ConfigYesNo(default=False)
-	config.crash.pythonStackOnSpinner.addNotifier(updateStackTracePrinter, immediate_feedback=False, initial_call=True)
-	config.crash.debugLevel = ConfigSelection(choices=[
-		("3", _("No debug logs")),
-		("4", _("Basic debug logs")),
-		("5", _("Detailed debug logs"))
-	], default="3")
-	config.crash.debugLevel.save_forced = True
-	# The config.crash.debugTimeFormat item is used to set ENIGMA_DEBUG_TIME environmental variable on enigma2 start from enigma2.sh.
-	config.crash.debugTimeFormat = ConfigSelection(choices=[
-		("0", _("None")),
-		("1", _("Boot time")),
-		("2", _("Local time")),
-		("3", _("Boot time and local time")),
-		("6", _("Local date/time")),
-		("7", _("Boot time and local data/time"))
-	], default="1")
-	config.crash.debugTimeFormat.save_forced = True
-	debugPath = [
-		("/home/root/logs/", "/home/root/")
-	]
-	for partition in harddiskmanager.getMountedPartitions():
-		if exists(partition.mountpoint):
-			path = normpath(partition.mountpoint)
-			if partition.mountpoint != "/":
-				debugPath.append((pathjoin(partition.mountpoint, "logs", ""), path))
-	config.crash.debugPath = ConfigSelection(default="/home/root/logs/", choices=debugPath)
-
-	def updateDebugPath(configElement):
-		if not exists(config.crash.debugPath.value):
-			mkdir(config.crash.debugPath.value, 0o755)
-
-	config.crash.debugPath.addNotifier(updateDebugPath, immediate_feedback=False)
-	config.crash.debugFileCount = ConfigSelectionNumber(min=2, max=20, stepwidth=1, default=5, wraparound=True)
-	config.crash.debugFileCount.save_forced = True
+	config.crash.pystackonspinner = ConfigYesNo(default=True)
+	config.crash.pystackonspinner.addNotifier(updateStackTracePrinter, immediate_feedback=False, initial_call=True)
 
 	config.seek = ConfigSubsection()
 	config.seek.selfdefined_13 = ConfigNumber(default=15)
@@ -1277,13 +1343,13 @@ def InitUsageConfig():
 		config.oscaminfo.showInExtensions = ConfigYesNo(default=True)
 	else:
 		config.oscaminfo.showInExtensions = ConfigYesNo(default=False)
-	config.oscaminfo.userdatafromconf = ConfigYesNo(default = True)
-	config.oscaminfo.autoupdate = ConfigYesNo(default = False)
-	config.oscaminfo.username = ConfigText(default = "username", fixed_size = False, visible_width=12)
-	config.oscaminfo.password = ConfigPassword(default = "password", fixed_size = False)
-	config.oscaminfo.ip = ConfigIP( default = [ 127,0,0,1 ], auto_jump=True)
-	config.oscaminfo.port = ConfigInteger(default = 16002, limits=(0,65536) )
-	config.oscaminfo.intervall = ConfigSelectionNumber(min = 1, max = 600, stepwidth = 1, default = 10, wraparound = True)
+	config.oscaminfo.userdatafromconf = ConfigYesNo(default=True)
+	config.oscaminfo.autoupdate = ConfigYesNo(default=False)
+	config.oscaminfo.username = ConfigText(default="username", fixed_size=False, visible_width=12)
+	config.oscaminfo.password = ConfigPassword(default="password", fixed_size=False)
+	config.oscaminfo.ip = ConfigIP(default=[127, 0, 0, 1], auto_jump=True)
+	config.oscaminfo.port = ConfigInteger(default=16002, limits=(0, 65536))
+	config.oscaminfo.intervall = ConfigSelectionNumber(min=1, max=600, stepwidth=1, default=10, wraparound=True)
 
 	config.streaming = ConfigSubsection()
 	config.streaming.stream_ecm = ConfigYesNo(default=False)
@@ -1299,6 +1365,15 @@ def InitUsageConfig():
 
 	config.misc.softcam_setup = ConfigSubsection()
 	config.misc.softcam_setup.extension_menu = ConfigYesNo(default=True)
+
+	config.logmanager = ConfigSubsection()
+	config.logmanager.showinextensions = ConfigYesNo(default=False)
+	config.logmanager.user = ConfigText(default='', fixed_size=False)
+	config.logmanager.useremail = ConfigText(default='', fixed_size=False)
+	config.logmanager.usersendcopy = ConfigYesNo(default=True)
+	config.logmanager.path = ConfigText(default="/")
+	config.logmanager.additionalinfo = NoSave(ConfigText(default=""))
+	config.logmanager.sentfiles = ConfigLocations(default='')
 
 	config.ntp = ConfigSubsection()
 
